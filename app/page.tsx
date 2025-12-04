@@ -14,7 +14,7 @@ const OrderDetailCard = () => {
           </div>
 
           <div className="flex gap-3 mb-4">
-            <div className="w-20 h-20 bg-pink-200 rounded-md flex-shrink-0 relative overflow-hidden border border-gray-100">
+            <div className="w-21 h-21 bg-pink-200 rounded-md flex-shrink-0 relative overflow-hidden">
               <img
                 src="	https://gw.alicdn.com/bao/uploaded/i3/1917047079/O1CN01gBK43s22AEjrFBzEX_!!1917047079.png_.webp"
                 alt="iPhone 16"
@@ -24,8 +24,8 @@ const OrderDetailCard = () => {
 
             <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-start">
-                <div className="text-[15px] text-black leading-tight pr-2">森林科技批发 - iPhone16</div>
-                <div className="text-[14px] font-bold text-right">¥ 4800.00</div>
+                <div className="text-[14px] text-black leading-tight pr-2">森林科技批发 - iPhone16</div>
+                <div className="text-[14px] font-bold text-right ">¥ 4800.00</div>
               </div>
 
               <div className="flex justify-between items-end mt-1">
@@ -42,7 +42,7 @@ const OrderDetailCard = () => {
           </div>
 
           <div className="flex justify-between items-center mb-5">
-            <span className="text-[13px] font-bold">实付款</span>
+            <span className="text-[13px] font-medium">实付款</span>
             <span className="text-[#ff5000] font-medium text-[18px]">¥ 4800.00</span>
           </div>
 
