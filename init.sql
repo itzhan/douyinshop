@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   price NUMERIC(12,2) NOT NULL,
+  shop_name TEXT,
   model_id INTEGER REFERENCES phone_models(id) ON DELETE SET NULL,
   color_id INTEGER REFERENCES colors(id) ON DELETE SET NULL,
   paid_amount NUMERIC(12,2),
@@ -68,8 +69,8 @@ INSERT INTO image_assets (url, model_id, color_id, alt) VALUES
   ('https://example.com/iphone16pro-black-front.png', 2, 2, 'iPhone16 Pro 黑色 正面')
 ON CONFLICT DO NOTHING;
 
-INSERT INTO products (title, price, model_id, color_id, paid_amount, order_number, cover_image_id, share_token, status)
-VALUES ('森林科技批发 - iPhone16', 4800, 1, 1, 4800, 'ORDER-20241204-0001', 1, 'demo-token-1', 'published')
+INSERT INTO products (title, price, shop_name, model_id, color_id, paid_amount, order_number, cover_image_id, share_token, status)
+VALUES ('森林科技批发 - iPhone16', 4800, '森林科技旗舰店', 1, 1, 4800, 'ORDER-20241204-0001', 1, 'demo-token-1', 'published')
 ON CONFLICT (order_number) DO NOTHING;
 
 INSERT INTO product_images (product_id, image_id, sort_order)

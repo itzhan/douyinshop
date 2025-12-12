@@ -25,6 +25,7 @@ export type Product = {
   id: string;
   title: string;
   price: number;
+  shop_name: string | null;
   model_id: number | null;
   color_id: number | null;
   paid_amount: number | null;
@@ -57,6 +58,11 @@ export async function createModel(name: string, brand?: string) {
   return rows[0];
 }
 
+export async function deleteModel(id: number) {
+  await query("DELETE FROM phone_models WHERE id = $1", [id]);
+  return { id };
+}
+
 export async function listColors(): Promise<Color[]> {
   const { rows } = await query("SELECT id, name, hex FROM colors ORDER BY name ASC");
   return rows;
@@ -68,6 +74,11 @@ export async function createColor(name: string, hex?: string) {
     [name, hex ?? null]
   );
   return rows[0];
+}
+
+export async function deleteColor(id: number) {
+  await query("DELETE FROM colors WHERE id = $1", [id]);
+  return { id };
 }
 
 export async function listImages(modelId?: number, colorId?: number): Promise<ImageAsset[]> {
@@ -101,13 +112,26 @@ export async function createImages(urls: string[], modelId?: number, colorId?: n
   return results;
 }
 
+export async function updateImage(id: number, data: { model_id?: number | null; color_id?: number | null; alt?: string | null }) {
+  const { rows } = await query(
+    "UPDATE image_assets SET model_id = $1, color_id = $2, alt = COALESCE($3, alt) WHERE id = $4 RETURNING id, url, model_id, color_id, alt",
+    [data.model_id ?? null, data.color_id ?? null, data.alt ?? null, id]
+  );
+  return rows[0] as ImageAsset;
+}
+
+export async function deleteImage(id: number) {
+  await query("DELETE FROM image_assets WHERE id = $1", [id]);
+  return { id };
+}
+
 function generateShareToken() {
   return randomBytes(6).toString("hex");
 }
 
 export async function listProducts(): Promise<ProductWithRelations[]> {
   const { rows } = await query(
-    `SELECT p.id, p.title, p.price, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
+    `SELECT p.id, p.title, p.price, p.shop_name, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
             m.name AS model_name, c.name AS color_name, ia.url AS cover_url
      FROM products p
      LEFT JOIN phone_models m ON m.id = p.model_id
@@ -121,6 +145,7 @@ export async function listProducts(): Promise<ProductWithRelations[]> {
 export async function createProduct(data: {
   title: string;
   price: number;
+  shop_name?: string | null;
   model_id?: number | null;
   color_id?: number | null;
   paid_amount?: number | null;
@@ -131,12 +156,13 @@ export async function createProduct(data: {
 }): Promise<ProductWithRelations> {
   const shareToken = generateShareToken();
   const { rows } = await query(
-    `INSERT INTO products (title, price, model_id, color_id, paid_amount, order_number, cover_image_id, share_token, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-     RETURNING id, title, price, model_id, color_id, paid_amount, order_number, cover_image_id, share_token, status`,
+    `INSERT INTO products (title, price, shop_name, model_id, color_id, paid_amount, order_number, cover_image_id, share_token, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+     RETURNING id, title, price, shop_name, model_id, color_id, paid_amount, order_number, cover_image_id, share_token, status`,
     [
       data.title,
       data.price,
+      data.shop_name ?? null,
       data.model_id ?? null,
       data.color_id ?? null,
       data.paid_amount ?? null,
@@ -155,7 +181,7 @@ export async function createProduct(data: {
 
   const [{ rows: relRows }] = await Promise.all([
     query(
-      `SELECT p.id, p.title, p.price, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
+      `SELECT p.id, p.title, p.price, p.shop_name, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
               m.name AS model_name, c.name AS color_name, ia.url AS cover_url
        FROM products p
        LEFT JOIN phone_models m ON m.id = p.model_id
@@ -171,7 +197,7 @@ export async function createProduct(data: {
 
 export async function getProductDetail(id: string): Promise<ProductDetail | null> {
   const { rows } = await query(
-    `SELECT p.id, p.title, p.price, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
+    `SELECT p.id, p.title, p.price, p.shop_name, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
             m.name AS model_name, c.name AS color_name, ia.url AS cover_url
      FROM products p
      LEFT JOIN phone_models m ON m.id = p.model_id
@@ -193,9 +219,14 @@ export async function getProductDetail(id: string): Promise<ProductDetail | null
   return { ...(product as ProductWithRelations), images: images.rows };
 }
 
+export async function deleteProduct(id: string) {
+  await query("DELETE FROM products WHERE id = $1", [id]);
+  return { id };
+}
+
 export async function getProductByToken(token: string): Promise<ProductDetail | null> {
   const { rows } = await query(
-    `SELECT p.id, p.title, p.price, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
+    `SELECT p.id, p.title, p.price, p.shop_name, p.model_id, p.color_id, p.paid_amount, p.order_number, p.cover_image_id, p.share_token, p.status,
             m.name AS model_name, c.name AS color_name, ia.url AS cover_url
      FROM products p
      LEFT JOIN phone_models m ON m.id = p.model_id

@@ -15,6 +15,7 @@ export async function POST(req: Request) {
     const payload = {
       title: body.title as string,
       price: Number(body.price),
+      shop_name: body.shop_name ? String(body.shop_name) : null,
       model_id: body.model_id ? Number(body.model_id) : null,
       color_id: body.color_id ? Number(body.color_id) : null,
       paid_amount: body.paid_amount ? Number(body.paid_amount) : null,
