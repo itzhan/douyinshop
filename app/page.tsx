@@ -856,7 +856,7 @@ export default function AdminPage() {
                     onChange={(e) => {
                       const files = Array.from(e.target.files ?? []);
                       const next = files.map((f) => ({
-                        id: crypto.randomUUID(),
+                        id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `local-${Date.now()}-${Math.random()}`,
                         file: f,
                         preview: URL.createObjectURL(f),
                       }));
