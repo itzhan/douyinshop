@@ -7,6 +7,25 @@ import { Copy, X } from "lucide-react";
 import type { Color, ImageAsset, PhoneModel, ProductWithRelations } from "@/lib/queries";
 
 const numberOrNull = (v: string) => (v ? Number(v) : null);
+const genId = () =>
+  typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `temp-${Date.now()}-${Math.random()}`;
+
+const fetchJson = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const res = await fetch(input, init);
+  let data: any;
+  try {
+    data = await res.json();
+  } catch (error) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || String(error));
+  }
+  if (!res.ok) {
+    throw new Error(data?.error || `请求失败(${res.status})`);
+  }
+  return data;
+};
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
@@ -91,10 +110,10 @@ export default function AdminPage() {
     setLoading(true);
     try {
       const [mRes, cRes, iRes, pRes] = await Promise.all([
-        fetch("/api/models").then((r) => r.json()),
-        fetch("/api/colors").then((r) => r.json()),
-        fetch("/api/images").then((r) => r.json()),
-        fetch("/api/products").then((r) => r.json()),
+        fetchJson("/api/models"),
+        fetchJson("/api/colors"),
+        fetchJson("/api/images"),
+        fetchJson("/api/products"),
       ]);
       setModels(mRes.data ?? []);
       setColors(cRes.data ?? []);
@@ -858,7 +877,7 @@ export default function AdminPage() {
                           const res = await fetch("/api/upload/cos", { method: "POST", body: form });
                           const json = await res.json();
                           if (!res.ok) throw new Error(json.error || "上传失败");
-                          uploaded.push({ id: crypto.randomUUID(), url: json.url, name: f.name });
+                          uploaded.push({ id: genId(), url: json.url, name: f.name });
                         }
                         setPendingFiles((prev) => [...prev, ...uploaded]);
                         showToast(`已上传 ${uploaded.length} 个文件，待绑定`, "success");
