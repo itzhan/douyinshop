@@ -846,7 +846,7 @@ export default function AdminPage() {
                       if (!files.length) return;
                       setUploading(true);
                       try {
-                        const uploaded = [];
+                        const uploaded: { id: string; url: string; name: string }[] = [];
                         for (const f of files) {
                           const form = new FormData();
                           form.append("file", f);
