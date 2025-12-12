@@ -295,9 +295,25 @@ export default function AdminPage() {
 
   const copyLink = async (link: string) => {
     try {
-      if (!navigator?.clipboard) throw new Error("当前环境不支持一键复制");
-      await navigator.clipboard.writeText(link);
-      showToast("复制成功", "success");
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        showToast("复制成功", "success");
+        return;
+      }
+      // 回退方案：创建隐藏 textarea
+      const el = document.createElement("textarea");
+      el.value = link;
+      el.style.position = "fixed";
+      el.style.left = "-9999px";
+      document.body.appendChild(el);
+      el.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(el);
+      if (ok) {
+        showToast("复制成功", "success");
+      } else {
+        throw new Error("浏览器未授予复制权限");
+      }
     } catch (error) {
       showToast(typeof error === "string" ? error : "复制失败，请检查浏览器权限", "error");
     }
