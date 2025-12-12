@@ -19,6 +19,7 @@ export default async function SharePage({ params }: Props) {
   const cover = product.cover_url ?? product.images?.[0]?.url ?? "";
   const price = Number(product.price ?? 0);
   const paid = Number(product.paid_amount ?? product.price ?? 0);
+  const shopName = product.shop_name || "默认店铺";
 
   return (
     <div className="min-h-screen bg-[#f5f5f5] flex justify-center py-4 font-sans text-[#333]">
@@ -26,7 +27,7 @@ export default async function SharePage({ params }: Props) {
         <div className="bg-white rounded-xl p-4 shadow-sm mx-3">
           <div className="flex items-center gap-2 mb-4">
             <Image src={Shop} alt="Shop Icon" className="w-5 h-5" />
-            <span className="font-medium text-[15px]">抖音森林科技-批发号</span>
+            <span className="font-medium text-[15px]">{shopName}</span>
             <ChevronRight className="w-4 h-4 text-gray-400" />
           </div>
 
