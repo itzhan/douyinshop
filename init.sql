@@ -50,7 +50,17 @@ CREATE TABLE IF NOT EXISTS product_images (
 CREATE INDEX IF NOT EXISTS idx_products_model_color ON products(model_id, color_id);
 CREATE INDEX IF NOT EXISTS idx_images_model_color ON image_assets(model_id, color_id);
 
+-- 店铺表（用于管理可选店铺名）
+CREATE TABLE IF NOT EXISTS shops (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- 示例数据
+INSERT INTO shops (name) VALUES ('抖音森林科技-批发号'), ('旗舰店'), ('批发店')
+ON CONFLICT (name) DO NOTHING;
+
 INSERT INTO phone_models (name, brand) VALUES
   ('iPhone 16', 'Apple'),
   ('iPhone 16 Pro', 'Apple'),

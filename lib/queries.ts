@@ -21,6 +21,8 @@ export type ImageAsset = {
   alt: string | null;
 };
 
+export type Shop = { id: number; name: string };
+
 export type Product = {
   id: string;
   title: string;
@@ -78,6 +80,24 @@ export async function createColor(name: string, hex?: string) {
 
 export async function deleteColor(id: number) {
   await query("DELETE FROM colors WHERE id = $1", [id]);
+  return { id };
+}
+
+export async function listShops(): Promise<Shop[]> {
+  const { rows } = await query("SELECT id, name FROM shops ORDER BY id DESC");
+  return rows;
+}
+
+export async function createShop(name: string): Promise<Shop> {
+  const { rows } = await query(
+    "INSERT INTO shops (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name",
+    [name]
+  );
+  return rows[0];
+}
+
+export async function deleteShop(id: number) {
+  await query("DELETE FROM shops WHERE id = $1", [id]);
   return { id };
 }
 

@@ -33,6 +33,7 @@ export default function AdminPage() {
   const [models, setModels] = useState<PhoneModel[]>([]);
   const [colors, setColors] = useState<Color[]>([]);
   const [images, setImages] = useState<ImageAsset[]>([]);
+  const [shops, setShops] = useState<{ id: number; name: string }[]>([]);
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [customBrands, setCustomBrands] = useState<string[]>([]);
 
@@ -52,6 +53,7 @@ export default function AdminPage() {
   const [brandFilter, setBrandFilter] = useState("");
   const [colorForm, setColorForm] = useState({ name: "", hex: "" });
   const [imageForm, setImageForm] = useState({ model_id: "", color_id: "" });
+  const [shopDraft, setShopDraft] = useState("");
   const [newShareLink, setNewShareLink] = useState<string>("");
   const [toast, setToast] = useState<{ text: string; type?: "success" | "error" | "info" } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -72,6 +74,14 @@ export default function AdminPage() {
     "outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-100 focus-visible:border-primary-300 " +
     "focus-visible:shadow-[0_0_0_2px_rgba(59,130,246,0.08)] dark:bg-white dark:text-gray-900";
   const lightBoxClassName = "border border-gray-300 rounded-lg bg-white shadow-sm";
+
+  const ORDER_PREFIX = "53503758768282";
+  const generateOrderNumber = () => {
+    const suffix = Math.floor(Math.random() * 1_000_000)
+      .toString()
+      .padStart(6, "0");
+    return `${ORDER_PREFIX}${suffix}`;
+  };
 
   const brandOptions = useMemo(() => {
     const set = new Set<string>();
@@ -109,16 +119,18 @@ export default function AdminPage() {
   const loadBaseData = async () => {
     setLoading(true);
     try {
-      const [mRes, cRes, iRes, pRes] = await Promise.all([
+      const [mRes, cRes, iRes, pRes, sRes] = await Promise.all([
         fetchJson("/api/models"),
         fetchJson("/api/colors"),
         fetchJson("/api/images"),
         fetchJson("/api/products"),
+        fetchJson("/api/shops"),
       ]);
       setModels(mRes.data ?? []);
       setColors(cRes.data ?? []);
       setImages(iRes.data ?? []);
       setProducts(pRes.data ?? []);
+      setShops(sRes.data ?? []);
       setCustomBrands((prev) => {
         const merged = new Set(prev);
         (mRes.data ?? []).forEach((m: PhoneModel) => m.brand && merged.add(m.brand));
@@ -146,7 +158,7 @@ export default function AdminPage() {
       model_id: numberOrNull(productForm.model_id),
       color_id: numberOrNull(productForm.color_id),
       paid_amount: numberOrNull(productForm.paid_amount),
-      order_number: productForm.order_number || null,
+      order_number: productForm.order_number || generateOrderNumber(),
       cover_image_id: numberOrNull(productForm.cover_image_id),
       image_ids: autoImages,
     };
@@ -248,6 +260,37 @@ export default function AdminPage() {
     setCustomBrands((prev) => Array.from(new Set([...prev, name])));
     setBrandDraft("");
     showToast("品牌已添加", "success");
+  };
+
+  const handleCreateShop = async () => {
+    const name = shopDraft.trim();
+    if (!name) return;
+    try {
+      setToast(null);
+      const res = await fetchJson("/api/shops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      setShopDraft("");
+      setShops((prev) => [res.data, ...prev.filter((s: any) => s.id !== res.data.id)]);
+      showToast("店铺已添加", "success");
+    } catch (error) {
+      showToast(String(error), "error");
+    }
+  };
+
+  const handleDeleteShop = async (id: number) => {
+    if (!window.confirm("确认删除该店铺吗？")) return;
+    try {
+      setToast(null);
+      const res = await fetchJson(`/api/shops/${id}`, { method: "DELETE" });
+      if (res.error) throw new Error(res.error);
+      setShops((prev) => prev.filter((s) => s.id !== id));
+      showToast("店铺已删除", "success");
+    } catch (error) {
+      showToast(String(error), "error");
+    }
   };
 
   const handleUpdateImage = async (id: number, next?: { model_id?: string; color_id?: string }) => {
@@ -537,6 +580,26 @@ export default function AdminPage() {
               <div className="text-base font-semibold">商品信息</div>
 
               <div className="space-y-1">
+                <label htmlFor="shop-select" className="text-sm text-gray-600">
+                  店铺
+                </label>
+                <select
+                  id="shop-select"
+                  className={`${lightInputClassName} text-sm`}
+                  value={productForm.shop_name}
+                  onChange={(e) => setProductForm({ ...productForm, shop_name: e.target.value })}
+                >
+                  <option value="">请选择店铺</option>
+                  {shops.map((s) => (
+                    <option key={s.id} value={s.name}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                {!shops.length && <p className="text-xs text-gray-400">还没有店铺，请先在下方添加</p>}
+              </div>
+
+              <div className="space-y-1">
                 <label htmlFor="product-title" className="text-sm text-gray-600">
                   商品标题 <span className="text-red-500">*</span>
                 </label>
@@ -546,18 +609,6 @@ export default function AdminPage() {
                   value={productForm.title}
                   className={lightInputClassName}
                   onChange={(e) => setProductForm({ ...productForm, title: e.target.value })}
-                />
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="shop-name" className="text-sm text-gray-600">
-                  店铺名（可自定义）
-                </label>
-                <Input
-                  id="shop-name"
-                  placeholder="例如：森林科技旗舰店"
-                  value={productForm.shop_name}
-                  className={lightInputClassName}
-                  onChange={(e) => setProductForm({ ...productForm, shop_name: e.target.value })}
                 />
               </div>
 
@@ -602,10 +653,11 @@ export default function AdminPage() {
                 </label>
                 <Input
                   id="product-order"
-                  placeholder="可选"
+                  placeholder="默认自动生成"
                   value={productForm.order_number}
                   className={lightInputClassName}
                   onChange={(e) => setProductForm({ ...productForm, order_number: e.target.value })}
+                  title="留空则自动生成随机编号"
                 />
               </div>
 
@@ -663,6 +715,40 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
+            </Card>
+
+            {/* 店铺管理 */}
+            <Card className="p-5 lg:col-span-12 space-y-3">
+              <div className="text-base font-semibold">店铺管理</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                <div className="md:col-span-2 space-y-1">
+                  <label className="text-sm text-gray-600">新增店铺名称</label>
+                  <Input
+                    placeholder="例如：森林科技旗舰店"
+                    value={shopDraft}
+                    className={lightInputClassName}
+                    onChange={(e) => setShopDraft(e.target.value)}
+                  />
+                </div>
+                <Button variant="primary" isDisabled={!shopDraft.trim()} onPress={handleCreateShop}>
+                  添加店铺
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {shops.map((s) => (
+                  <div key={s.id} className={`${lightBoxClassName} flex items-center gap-2 px-3 py-1`}>
+                    <span>{s.name}</span>
+                    <button
+                      type="button"
+                      className="text-danger hover:underline"
+                      onClick={() => void handleDeleteShop(s.id)}
+                    >
+                      删除
+                    </button>
+                  </div>
+                ))}
+                {!shops.length && <span className="text-xs text-gray-400">暂无店铺，先添加一个吧</span>}
+              </div>
             </Card>
           </div>
         )}
