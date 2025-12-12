@@ -36,7 +36,7 @@ export default function AdminPage() {
   const [newShareLink, setNewShareLink] = useState<string>("");
   const [toast, setToast] = useState<{ text: string; type?: "success" | "error" | "info" } | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [pendingFiles, setPendingFiles] = useState<{ id: string; file: File; preview: string }[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<{ id: string; url: string; name: string }[]>([]);
   const [imageEdits, setImageEdits] = useState<Record<number, { model_id: string; color_id: string }>>({});
   const [editingImageId, setEditingImageId] = useState<number | null>(null);
 
@@ -192,7 +192,7 @@ export default function AdminPage() {
 
   const handleCreateImages = async () => {
     if (!pendingFiles.length) {
-      showToast("请先选择图片文件", "error");
+      showToast("请先选择并上传文件", "error");
       return;
     }
     if (!imageForm.model_id || !imageForm.color_id) {
@@ -201,31 +201,19 @@ export default function AdminPage() {
     }
     setUploading(true);
     try {
-      const uploaded: string[] = [];
-      for (const item of pendingFiles) {
-        const form = new FormData();
-        form.append("file", item.file);
-        const dirParts = [`model-${imageForm.model_id}`, `color-${imageForm.color_id}`];
-        form.append("dir", dirParts.join("/"));
-        const res = await fetch("/api/upload/cos", { method: "POST", body: form });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error || "上传失败");
-        uploaded.push(json.url);
-      }
-
+      const urls = pendingFiles.map((p) => p.url);
       const res = await fetch("/api/images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          urls: uploaded,
+          urls,
           model_id: numberOrNull(imageForm.model_id),
           color_id: numberOrNull(imageForm.color_id),
         }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "入库失败");
-      showToast("图片已上传并绑定", "success");
-      pendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+      showToast("图片已入库并绑定", "success");
       setPendingFiles([]);
       loadBaseData();
     } catch (error) {
@@ -853,15 +841,33 @@ export default function AdminPage() {
                     type="file"
                     className="hidden"
                     multiple
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const files = Array.from(e.target.files ?? []);
-                      const next = files.map((f) => ({
-                        id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `local-${Date.now()}-${Math.random()}`,
-                        file: f,
-                        preview: URL.createObjectURL(f),
-                      }));
-                      setPendingFiles((prev) => [...prev, ...next]);
-                      e.target.value = "";
+                      if (!files.length) return;
+                      setUploading(true);
+                      try {
+                        const uploaded = [];
+                        for (const f of files) {
+                          const form = new FormData();
+                          form.append("file", f);
+                          const dirParts = [
+                            imageForm.model_id ? `model-${imageForm.model_id}` : "",
+                            imageForm.color_id ? `color-${imageForm.color_id}` : "",
+                          ].filter(Boolean);
+                          if (dirParts.length) form.append("dir", dirParts.join("/"));
+                          const res = await fetch("/api/upload/cos", { method: "POST", body: form });
+                          const json = await res.json();
+                          if (!res.ok) throw new Error(json.error || "上传失败");
+                          uploaded.push({ id: crypto.randomUUID(), url: json.url, name: f.name });
+                        }
+                        setPendingFiles((prev) => [...prev, ...uploaded]);
+                        showToast(`已上传 ${uploaded.length} 个文件，待绑定`, "success");
+                      } catch (error) {
+                        showToast(String(error), "error");
+                      } finally {
+                        setUploading(false);
+                        e.target.value = "";
+                      }
                     }}
                   />
                   <span className="text-primary-600 font-medium">{uploading ? "上传中..." : "选择文件"}</span>
@@ -871,21 +877,17 @@ export default function AdminPage() {
                     {pendingFiles.map((f) => (
                       <div key={f.id} className="relative border rounded-md overflow-hidden bg-white">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={f.preview} alt={f.file.name} className="w-full h-24 object-cover" />
+                        <img src={f.url} alt={f.name} className="w-full h-24 object-cover" />
                         <button
                           type="button"
                           className="absolute top-1 right-1 rounded-full bg-black/60 text-white text-[10px] px-2 py-0.5"
                           onClick={() =>
-                            setPendingFiles((prev) => {
-                              const target = prev.find((p) => p.id === f.id);
-                              if (target) URL.revokeObjectURL(target.preview);
-                              return prev.filter((p) => p.id !== f.id);
-                            })
+                            setPendingFiles((prev) => prev.filter((p) => p.id !== f.id))
                           }
                         >
                           删除
                         </button>
-                        <div className="px-2 py-1 text-[11px] text-gray-600 line-clamp-1">{f.file.name}</div>
+                        <div className="px-2 py-1 text-[11px] text-gray-600 line-clamp-1">{f.name}</div>
                       </div>
                     ))}
                   </div>
