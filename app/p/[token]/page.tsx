@@ -27,7 +27,7 @@ export default async function SharePage({ params }: Props) {
         <div className="bg-white rounded-xl p-4 shadow-sm mx-3">
           <div className="flex items-center gap-2 mb-4">
             <Image src={Shop} alt="Shop Icon" className="w-5 h-5" />
-            <span className="font-medium text-[15px]">{shopName}</span>
+            <span className="font-bold text-[15px]">{shopName}</span>
             <ChevronRight className="w-4 h-4 text-gray-400" />
           </div>
 

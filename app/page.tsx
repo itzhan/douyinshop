@@ -36,6 +36,8 @@ export default function AdminPage() {
   const [shops, setShops] = useState<{ id: number; name: string }[]>([]);
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [customBrands, setCustomBrands] = useState<string[]>([]);
+  const [hasManualTitle, setHasManualTitle] = useState(false);
+  const [lastAutoTitle, setLastAutoTitle] = useState("");
 
   const [productForm, setProductForm] = useState({
     title: "",
@@ -110,6 +112,25 @@ export default function AdminPage() {
     });
     return obj;
   }, [colors]);
+
+  // 根据店铺与型号自动生成标题
+  const autoTitle = useMemo(() => {
+    const shopName = (productForm.shop_name ?? "").trim();
+    const modelName = modelMap[Number(productForm.model_id)] ?? "";
+    if (!shopName && !modelName) return "";
+    return [shopName, modelName].filter(Boolean).join(" ");
+  }, [modelMap, productForm.model_id, productForm.shop_name]);
+
+  useEffect(() => {
+    const next = autoTitle.trim();
+    if (!next) return;
+    if (!hasManualTitle || productForm.title === lastAutoTitle) {
+      if (productForm.title !== next) {
+        setProductForm((prev) => ({ ...prev, title: next }));
+      }
+      setLastAutoTitle(next);
+    }
+  }, [autoTitle, hasManualTitle, lastAutoTitle, productForm.title]);
 
   const showToast = (text: string, type: "success" | "error" | "info" = "info") => {
     setToast({ text, type });
@@ -186,6 +207,8 @@ export default function AdminPage() {
       order_number: "",
       cover_image_id: "",
     });
+    setHasManualTitle(false);
+    setLastAutoTitle("");
     loadBaseData();
   };
 
@@ -608,7 +631,11 @@ export default function AdminPage() {
                   placeholder="例如：森林科技批发 - iPhone16"
                   value={productForm.title}
                   className={lightInputClassName}
-                  onChange={(e) => setProductForm({ ...productForm, title: e.target.value })}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setProductForm({ ...productForm, title: value });
+                    setHasManualTitle(value.trim().length > 0);
+                  }}
                 />
               </div>
 
