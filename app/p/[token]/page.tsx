@@ -32,7 +32,7 @@ export default async function SharePage({ params }: Props) {
           </div>
 
           <div className="flex gap-3 mb-4">
-            <div className="w-24 h-24 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden border border-gray-100">
+            <div className="w-20 h-20 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden border border-gray-100">
               {cover ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={cover} alt={product.title} className="w-full h-full object-cover" />
@@ -43,12 +43,12 @@ export default async function SharePage({ params }: Props) {
 
             <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-start gap-2">
-                <div className="text-[15px] text-black leading-tight pr-2">{product.title}</div>
-                <div className="text-[15px] font-bold text-right">¥ {price.toFixed(2)}</div>
+                <div className="text-[14px] text-black leading-tight pr-2">{product.title}</div>
+                <div className="text-[14px] font-bold text-righ">¥ {price.toFixed(2)}</div>
               </div>
 
-              <div className="flex justify-between items-end mt-1">
-                <div className="text-gray-500 text-xs px-1 py-0.5 rounded">
+              <div className="flex justify-between items-end">
+                <div className="text-gray-500 text-[13px] px-1 py-0.5 rounded">
                   {product.model_name ?? "型号未知"}；{product.color_name ?? "颜色未选"}
                 </div>
                 <div className="text-gray-400 text-xs">x1</div>
