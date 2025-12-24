@@ -43,8 +43,8 @@ export default async function SharePage({ params }: Props) {
 
             <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-start gap-2">
-                <div className="text-[14px] text-black leading-tight pr-2">{product.title}</div>
-                <div className="text-[14px] font-bold text-righ">¥ {price.toFixed(2)}</div>
+                <div className="text-[12px] text-black leading-tight pr-2">{product.title}</div>
+                <div className="text-[12px] font-bold text-righ">¥ {price.toFixed(2)}</div>
               </div>
 
               <div className="flex justify-between items-end">
