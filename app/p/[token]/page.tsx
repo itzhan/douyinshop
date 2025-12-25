@@ -43,12 +43,12 @@ export default async function SharePage({ params }: Props) {
 
             <div className="flex-1 flex flex-col">
               <div className="flex justify-between items-start gap-2">
-                <div className="text-[12px] text-black leading-tight pr-2">{product.title}</div>
-                <div className="text-[12px] font-bold text-righ">¥ {price.toFixed(2)}</div>
+                <div className="text-[13px] text-black leading-tight pr-2">{product.title}</div>
+                <div className="text-[13px] font-bold text-righ">¥ {price.toFixed(2)}</div>
               </div>
 
               <div className="flex justify-between items-end">
-                <div className="text-gray-500 text-[13px] px-1 py-0.5 rounded">
+                <div className="text-gray-500 text-[12px] px-1 py-0.5 rounded">
                   {product.model_name ?? "型号未知"}；{product.color_name ?? "颜色未选"}
                 </div>
                 <div className="text-gray-400 text-xs">x1</div>

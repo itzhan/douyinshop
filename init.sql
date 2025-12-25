@@ -54,6 +54,7 @@ CREATE INDEX IF NOT EXISTS idx_images_model_color ON image_assets(model_id, colo
 CREATE TABLE IF NOT EXISTS shops (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
+  title_templates TEXT[] NOT NULL DEFAULT '{}'::text[],
   created_at TIMESTAMPTZ DEFAULT now()
 );
 

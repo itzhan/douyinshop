@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Chip, Input, Spinner } from "@heroui/react";
 import { Copy, X } from "lucide-react";
 
-import type { Color, ImageAsset, PhoneModel, ProductWithRelations } from "@/lib/queries";
+import type { Color, ImageAsset, PhoneModel, ProductWithRelations, Shop } from "@/lib/queries";
 
 const numberOrNull = (v: string) => (v ? Number(v) : null);
 const genId = () =>
@@ -33,7 +33,7 @@ export default function AdminPage() {
   const [models, setModels] = useState<PhoneModel[]>([]);
   const [colors, setColors] = useState<Color[]>([]);
   const [images, setImages] = useState<ImageAsset[]>([]);
-  const [shops, setShops] = useState<{ id: number; name: string }[]>([]);
+  const [shops, setShops] = useState<Shop[]>([]);
   const [products, setProducts] = useState<ProductWithRelations[]>([]);
   const [customBrands, setCustomBrands] = useState<string[]>([]);
   const [hasManualTitle, setHasManualTitle] = useState(false);
@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [productForm, setProductForm] = useState({
     title: "",
     shop_name: "",
+    title_template: "",
     price: "",
     model_id: "",
     color_id: "",
@@ -56,6 +57,7 @@ export default function AdminPage() {
   const [colorForm, setColorForm] = useState({ name: "", hex: "" });
   const [imageForm, setImageForm] = useState({ model_id: "", color_id: "" });
   const [shopDraft, setShopDraft] = useState("");
+  const [templateDrafts, setTemplateDrafts] = useState<Record<number, string>>({});
   const [newShareLink, setNewShareLink] = useState<string>("");
   const [toast, setToast] = useState<{ text: string; type?: "success" | "error" | "info" } | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -113,13 +115,18 @@ export default function AdminPage() {
     return obj;
   }, [colors]);
 
-  // 根据店铺与型号自动生成标题
+  const selectedShop = useMemo(
+    () => shops.find((s) => s.name === productForm.shop_name) ?? null,
+    [productForm.shop_name, shops]
+  );
+
+  // 根据标题模板与型号自动生成标题
   const autoTitle = useMemo(() => {
-    const shopName = (productForm.shop_name ?? "").trim();
+    const templateName = (productForm.title_template ?? "").trim();
     const modelName = modelMap[Number(productForm.model_id)] ?? "";
-    if (!shopName && !modelName) return "";
-    return [shopName, modelName].filter(Boolean).join(" ");
-  }, [modelMap, productForm.model_id, productForm.shop_name]);
+    if (!templateName && !modelName) return "";
+    return [templateName, modelName].filter(Boolean).join(" ");
+  }, [modelMap, productForm.model_id, productForm.title_template]);
 
   useEffect(() => {
     const next = autoTitle.trim();
@@ -131,6 +138,19 @@ export default function AdminPage() {
       setLastAutoTitle(next);
     }
   }, [autoTitle, hasManualTitle, lastAutoTitle, productForm.title]);
+
+  useEffect(() => {
+    const templates = selectedShop?.title_templates ?? [];
+    if (!templates.length) {
+      if (productForm.title_template) {
+        setProductForm((prev) => ({ ...prev, title_template: "" }));
+      }
+      return;
+    }
+    if (!templates.includes(productForm.title_template)) {
+      setProductForm((prev) => ({ ...prev, title_template: templates[0] }));
+    }
+  }, [productForm.title_template, selectedShop]);
 
   const showToast = (text: string, type: "success" | "error" | "info" = "info") => {
     setToast({ text, type });
@@ -200,6 +220,7 @@ export default function AdminPage() {
     setProductForm({
       title: "",
       shop_name: "",
+      title_template: "",
       price: "",
       model_id: "",
       color_id: "",
@@ -296,7 +317,7 @@ export default function AdminPage() {
         body: JSON.stringify({ name }),
       });
       setShopDraft("");
-      setShops((prev) => [res.data, ...prev.filter((s: any) => s.id !== res.data.id)]);
+      setShops((prev) => [res.data, ...prev.filter((s) => s.id !== res.data.id)]);
       showToast("店铺已添加", "success");
     } catch (error) {
       showToast(String(error), "error");
@@ -311,6 +332,44 @@ export default function AdminPage() {
       if (res.error) throw new Error(res.error);
       setShops((prev) => prev.filter((s) => s.id !== id));
       showToast("店铺已删除", "success");
+    } catch (error) {
+      showToast(String(error), "error");
+    }
+  };
+
+  const normalizeTemplates = (list: string[]) =>
+    Array.from(new Set(list.map((item) => item.trim()).filter(Boolean)));
+
+  const handleUpdateShopTemplates = async (id: number, templates: string[]) => {
+    setToast(null);
+    const res = await fetchJson(`/api/shops/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title_templates: normalizeTemplates(templates) }),
+    });
+    setShops((prev) => prev.map((s) => (s.id === id ? res.data : s)));
+    return res.data as Shop;
+  };
+
+  const handleAddTemplate = async (shop: Shop) => {
+    const draft = (templateDrafts[shop.id] ?? "").trim();
+    if (!draft) return;
+    const nextTemplates = normalizeTemplates([...(shop.title_templates ?? []), draft]);
+    try {
+      await handleUpdateShopTemplates(shop.id, nextTemplates);
+      setTemplateDrafts((prev) => ({ ...prev, [shop.id]: "" }));
+      showToast("标题模板已添加", "success");
+    } catch (error) {
+      showToast(String(error), "error");
+    }
+  };
+
+  const handleRemoveTemplate = async (shop: Shop, template: string) => {
+    if (!window.confirm(`确认删除模板「${template}」吗？`)) return;
+    const nextTemplates = normalizeTemplates((shop.title_templates ?? []).filter((t) => t !== template));
+    try {
+      await handleUpdateShopTemplates(shop.id, nextTemplates);
+      showToast("标题模板已删除", "success");
     } catch (error) {
       showToast(String(error), "error");
     }
@@ -623,6 +682,29 @@ export default function AdminPage() {
               </div>
 
               <div className="space-y-1">
+                <label htmlFor="template-select" className="text-sm text-gray-600">
+                  标题模板
+                </label>
+                <select
+                  id="template-select"
+                  className={`${lightInputClassName} text-sm`}
+                  value={productForm.title_template}
+                  onChange={(e) => setProductForm({ ...productForm, title_template: e.target.value })}
+                  disabled={!selectedShop?.title_templates?.length}
+                >
+                  <option value="">请选择模板</option>
+                  {(selectedShop?.title_templates ?? []).map((tpl) => (
+                    <option key={tpl} value={tpl}>
+                      {tpl}
+                    </option>
+                  ))}
+                </select>
+                {!!productForm.shop_name && !selectedShop?.title_templates?.length && (
+                  <p className="text-xs text-gray-400">该店铺尚未配置标题模板，请在下方店铺管理中添加</p>
+                )}
+              </div>
+
+              <div className="space-y-1">
                 <label htmlFor="product-title" className="text-sm text-gray-600">
                   商品标题 <span className="text-red-500">*</span>
                 </label>
@@ -761,17 +843,59 @@ export default function AdminPage() {
                   添加店铺
                 </Button>
               </div>
-              <div className="flex flex-wrap gap-2 text-xs">
+              <div className="space-y-3">
                 {shops.map((s) => (
-                  <div key={s.id} className={`${lightBoxClassName} flex items-center gap-2 px-3 py-1`}>
-                    <span>{s.name}</span>
-                    <button
-                      type="button"
-                      className="text-danger hover:underline"
-                      onClick={() => void handleDeleteShop(s.id)}
-                    >
-                      删除
-                    </button>
+                  <div key={s.id} className={`${lightBoxClassName} p-3 space-y-2`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-medium text-gray-900">{s.name}</span>
+                      <button
+                        type="button"
+                        className="text-xs text-danger hover:underline"
+                        onClick={() => void handleDeleteShop(s.id)}
+                      >
+                        删除店铺
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {(s.title_templates ?? []).length ? (
+                        s.title_templates.map((tpl) => (
+                          <span
+                            key={tpl}
+                            className="inline-flex items-center gap-1 rounded-full bg-default-100 text-default-700 px-2 py-0.5"
+                          >
+                            {tpl}
+                            <button
+                              type="button"
+                              className="text-default-400 hover:text-default-600"
+                              onClick={() => void handleRemoveTemplate(s, tpl)}
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-xs text-gray-400">暂无标题模板</span>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-end">
+                      <div className="md:col-span-2">
+                        <Input
+                          placeholder="新增标题模板，如：森林科技批发"
+                          value={templateDrafts[s.id] ?? ""}
+                          className={lightInputClassName}
+                          onChange={(e) =>
+                            setTemplateDrafts((prev) => ({ ...prev, [s.id]: e.target.value }))
+                          }
+                        />
+                      </div>
+                      <Button
+                        variant="primary"
+                        onPress={() => void handleAddTemplate(s)}
+                        isDisabled={!templateDrafts[s.id]?.trim()}
+                      >
+                        添加模板
+                      </Button>
+                    </div>
                   </div>
                 ))}
                 {!shops.length && <span className="text-xs text-gray-400">暂无店铺，先添加一个吧</span>}

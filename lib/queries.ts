@@ -21,7 +21,7 @@ export type ImageAsset = {
   alt: string | null;
 };
 
-export type Shop = { id: number; name: string };
+export type Shop = { id: number; name: string; title_templates: string[] };
 
 export type Product = {
   id: string;
@@ -84,21 +84,40 @@ export async function deleteColor(id: number) {
 }
 
 export async function listShops(): Promise<Shop[]> {
-  const { rows } = await query("SELECT id, name FROM shops ORDER BY id DESC");
-  return rows;
+  const { rows } = await query(
+    "SELECT id, name, COALESCE(title_templates, '{}'::text[]) AS title_templates FROM shops ORDER BY id DESC"
+  );
+  return rows.map((row) => ({
+    ...row,
+    title_templates: Array.isArray(row.title_templates) ? row.title_templates : [],
+  }));
 }
 
-export async function createShop(name: string): Promise<Shop> {
+export async function createShop(name: string, templates: string[] = []): Promise<Shop> {
   const { rows } = await query(
-    "INSERT INTO shops (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name",
-    [name]
+    "INSERT INTO shops (name, title_templates) VALUES ($1, $2) ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id, name, title_templates",
+    [name, templates]
   );
-  return rows[0];
+  return {
+    ...rows[0],
+    title_templates: Array.isArray(rows[0]?.title_templates) ? rows[0].title_templates : [],
+  } as Shop;
 }
 
 export async function deleteShop(id: number) {
   await query("DELETE FROM shops WHERE id = $1", [id]);
   return { id };
+}
+
+export async function updateShopTemplates(id: number, templates: string[]): Promise<Shop> {
+  const { rows } = await query(
+    "UPDATE shops SET title_templates = $1 WHERE id = $2 RETURNING id, name, title_templates",
+    [templates, id]
+  );
+  return {
+    ...rows[0],
+    title_templates: Array.isArray(rows[0]?.title_templates) ? rows[0].title_templates : [],
+  } as Shop;
 }
 
 export async function listImages(modelId?: number, colorId?: number): Promise<ImageAsset[]> {
