@@ -66,12 +66,33 @@ export default function AdminPage() {
   const [editingImageId, setEditingImageId] = useState<number | null>(null);
 
   const filteredImages = useMemo(() => {
+    if (!productForm.model_id) return [];
     return images.filter((img) => {
-      if (productForm.model_id && img.model_id !== Number(productForm.model_id)) return false;
+      if (img.model_id !== Number(productForm.model_id)) return false;
       if (productForm.color_id && img.color_id !== Number(productForm.color_id)) return false;
       return true;
     });
   }, [images, productForm.color_id, productForm.model_id]);
+
+  const availableColors = useMemo(() => {
+    if (!productForm.model_id) return [];
+    const modelId = Number(productForm.model_id);
+    const colorIds = new Set<number>();
+    images.forEach((img) => {
+      if (img.model_id !== modelId) return;
+      if (img.color_id) colorIds.add(img.color_id);
+    });
+    if (!colorIds.size) return [];
+    return colors.filter((c) => colorIds.has(c.id));
+  }, [colors, images, productForm.model_id]);
+
+  useEffect(() => {
+    if (!productForm.color_id) return;
+    const exists = availableColors.some((c) => String(c.id) === productForm.color_id);
+    if (!exists) {
+      setProductForm((prev) => ({ ...prev, color_id: "", cover_image_id: "" }));
+    }
+  }, [availableColors, productForm.color_id]);
 
   const lightInputClassName =
     "w-full px-3 py-2 bg-white text-gray-900 placeholder:text-gray-400 border border-gray-300 rounded-lg shadow-sm " +
@@ -190,8 +211,7 @@ export default function AdminPage() {
 
   const handleCreateProduct = async () => {
     setToast(null);
-    const autoImages =
-      productForm.model_id && productForm.color_id ? filteredImages.map((img) => img.id) : [];
+    const autoImages = productForm.model_id ? filteredImages.map((img) => img.id) : [];
     const payload = {
       title: productForm.title,
       price: Number(productForm.price),
@@ -551,6 +571,7 @@ export default function AdminPage() {
                     setProductForm({
                       ...productForm,
                       model_id: e.target.value,
+                      color_id: "",
                       cover_image_id: "",
                     })
                   }
@@ -564,44 +585,49 @@ export default function AdminPage() {
                 </select>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm text-gray-600">颜色</label>
-                <div className="flex flex-wrap gap-2">
-                  {colors.map((c) => {
-                    const active = productForm.color_id === String(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() =>
-                          setProductForm({
-                            ...productForm,
-                            color_id: String(c.id),
-                            cover_image_id: "",
-                          })
-                        }
-                        className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-all ${
-                          active
-                            ? "border-transparent bg-gray-900 text-white shadow-md"
-                            : "border-default-200 bg-white text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        <span
-                          aria-hidden
-                          className={`inline-flex w-3.5 h-3.5 rounded-full ${active ? "ring-2 ring-white/50" : "border border-black/10"}`}
-                          style={{ background: c.hex ?? "#e5e7eb" }}
-                        />
-                        <span>{c.name}</span>
-                      </button>
-                    );
-                  })}
-                  {!colors.length && <span className="text-xs text-gray-400">请先去颜色管理新增</span>}
+              {!!productForm.model_id && availableColors.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm text-gray-600">颜色（可选筛选）</label>
+                  <div className="flex flex-wrap gap-2">
+                    {availableColors.map((c) => {
+                      const active = productForm.color_id === String(c.id);
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() =>
+                            setProductForm({
+                              ...productForm,
+                              color_id: active ? "" : String(c.id),
+                              cover_image_id: "",
+                            })
+                          }
+                          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm transition-all ${
+                            active
+                              ? "border-transparent bg-gray-900 text-white shadow-md"
+                              : "border-default-200 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
+                        >
+                          <span
+                            aria-hidden
+                            className={`inline-flex w-3.5 h-3.5 rounded-full ${active ? "ring-2 ring-white/50" : "border border-black/10"}`}
+                            style={{ background: c.hex ?? "#e5e7eb" }}
+                          />
+                          <span>{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {(!productForm.model_id || !productForm.color_id) && (
+              {productForm.model_id && !availableColors.length && (
+                <div className="text-xs text-gray-400">该型号暂无可用颜色筛选，已显示全部照片</div>
+              )}
+
+              {!productForm.model_id && (
                 <div className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2">
-                  请先选择型号和颜色，才能选择封面图片
+                  请先选择型号，颜色可作为筛选条件
                 </div>
               )}
             </Card>
@@ -610,11 +636,11 @@ export default function AdminPage() {
             <Card className="p-5 lg:col-span-5 flex flex-col">
               <div className="flex items-center justify-between mb-4">
                 <div className="text-base font-semibold">选择封面</div>
-                <span className="text-xs text-gray-400">自动按型号/颜色筛选</span>
+                <span className="text-xs text-gray-400">按型号筛选，可选颜色筛选</span>
               </div>
 
               {/* 候选图片 */}
-              {productForm.model_id && productForm.color_id ? (
+              {productForm.model_id ? (
                 filteredImages.length ? (
                   <div className="flex-1 overflow-y-auto min-h-0 px-4 py-4">
                     <div className="grid grid-cols-3 gap-4">
@@ -647,12 +673,12 @@ export default function AdminPage() {
                   </div>
                 ) : (
                   <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-default-300 bg-default-50">
-                    <p className="text-sm text-gray-400">该型号与颜色暂无图片，请先到图片管理导入</p>
+                    <p className="text-sm text-gray-400">该型号暂无图片，请先到图片管理导入</p>
                   </div>
                 )
               ) : (
                 <div className="flex-1 flex items-center justify-center rounded-lg border border-dashed border-default-300 bg-default-50">
-                  <p className="text-sm text-gray-400">请先在左侧选择型号和颜色</p>
+                  <p className="text-sm text-gray-400">请先在左侧选择型号</p>
                 </div>
               )}
             </Card>
